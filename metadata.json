@@ -1,0 +1,6 @@
+{
+  "name": "Downloader_GodBot - Telegram Cloud Bot Control Center",
+  "description": "Telegram Media Downloader Bot management console, live API tester, and Gemini AI multimedia extraction copilot.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

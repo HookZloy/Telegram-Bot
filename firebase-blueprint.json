@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "downloadTask": {
+      "title": "Download Task",
+      "description": "A media download or extraction request created by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the download task",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owner",
+          "maxLength": 128
+        },
+        "url": {
+          "type": "string",
+          "description": "Target media URL to extract or download",
+          "maxLength": 2048
+        },
+        "platform": {
+          "type": "string",
+          "description": "Detected social media / video platform",
+          "enum": ["youtube", "instagram", "tiktok", "twitter", "facebook", "soundcloud", "spotify", "vimeo", "other"]
+        },
+        "format": {
+          "type": "string",
+          "description": "Selected download format or quality preset",
+          "enum": ["video_4k", "video_2k", "video_1080p", "video_720p", "video_480p", "audio_mp3", "gif"]
+        },
+        "status": {
+          "type": "string",
+          "description": "Current processing state of the download task",
+          "enum": ["queued", "downloading", "completed", "failed"]
+        },
+        "title": {
+          "type": "string",
+          "description": "Media title or caption",
+          "maxLength": 256
+        },
+        "fileSize": {
+          "type": "string",
+          "description": "Human-readable size of the downloaded media",
+          "maxLength": 64
+        },
+        "muxingStatus": {
+          "type": "string",
+          "description": "Status of audio track muxing for 4K and adaptive streams",
+          "enum": ["muxed", "muxing", "direct"]
+        },
+        "batchId": {
+          "type": "string",
+          "description": "Identifier of parent playlist batch if part of a collection",
+          "maxLength": 128
+        },
+        "playlistName": {
+          "type": "string",
+          "description": "Name of the source playlist or album",
+          "maxLength": 256
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Server timestamp when task was created",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Server timestamp when task was last modified",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "userId", "url", "platform", "format", "status", "title", "createdAt", "updatedAt"]
+    },
+    "botSetting": {
+      "title": "Bot Setting",
+      "description": "User specific configuration for Telegram Bot Downloader",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user",
+          "maxLength": 128
+        },
+        "defaultQuality": {
+          "type": "string",
+          "description": "Default quality preset for downloads",
+          "enum": ["4k", "1080p", "720p", "480p", "mp3"]
+        },
+        "autoDownload": {
+          "type": "string",
+          "description": "Whether bot automatically processes sent media links",
+          "enum": ["enabled", "disabled"]
+        },
+        "targetChatId": {
+          "type": "string",
+          "description": "Telegram chat ID to send completed files to",
+          "maxLength": 64
+        },
+        "notificationEnabled": {
+          "type": "string",
+          "description": "Flag indicating if notifications are enabled",
+          "enum": ["true", "false"]
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Server timestamp of last settings update",
+          "maxLength": 64
+        }
+      },
+      "required": ["userId", "defaultQuality", "autoDownload", "notificationEnabled", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/downloads/{downloadId}": {
+      "schema": {
+        "$ref": "#/entities/downloadTask"
+      },
+      "description": "User download history and active media tasks"
+    },
+    "/users/{userId}/settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/botSetting"
+      },
+      "description": "User preferences and Telegram bot target options"
+    }
+  }
+}

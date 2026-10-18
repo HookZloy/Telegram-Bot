@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny all unhandled paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation for downloadTask
+    function isValidDownloadTask(data) {
+      return data.keys().hasAll(['id', 'userId', 'url', 'platform', 'format', 'status', 'title', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'userId', 'url', 'platform', 'format', 'status', 'title', 'fileSize', 'muxingStatus', 'batchId', 'playlistName', 'createdAt', 'updatedAt'])
+        && data.id is string && isValidId(data.id)
+        && data.userId is string && data.userId.size() <= 128
+        && data.url is string && data.url.size() > 0 && data.url.size() <= 2048
+        && data.platform in ['youtube', 'instagram', 'tiktok', 'twitter', 'facebook', 'soundcloud', 'spotify', 'vimeo', 'other']
+        && data.format in ['video_4k', 'video_2k', 'video_1080p', 'video_720p', 'video_480p', 'audio_mp3', 'gif']
+        && data.status in ['queued', 'downloading', 'completed', 'failed']
+        && data.title is string && data.title.size() <= 256
+        && (!('fileSize' in data) || (data.fileSize is string && data.fileSize.size() <= 64))
+        && (!('muxingStatus' in data) || (data.muxingStatus in ['muxed', 'muxing', 'direct']))
+        && (!('batchId' in data) || (data.batchId is string && data.batchId.size() <= 128))
+        && (!('playlistName' in data) || (data.playlistName is string && data.playlistName.size() <= 256))
+        && data.createdAt is string && data.createdAt.size() <= 64
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    // Validation for botSetting
+    function isValidBotSetting(data) {
+      return data.keys().hasAll(['userId', 'defaultQuality', 'autoDownload', 'notificationEnabled', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'defaultQuality', 'autoDownload', 'targetChatId', 'notificationEnabled', 'updatedAt'])
+        && data.userId is string && data.userId.size() <= 128
+        && data.defaultQuality in ['4k', '1080p', '720p', '480p', 'mp3']
+        && data.autoDownload in ['enabled', 'disabled']
+        && (!('targetChatId' in data) || (data.targetChatId is string && data.targetChatId.size() <= 64))
+        && data.notificationEnabled in ['true', 'false']
+        && data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    // Test connection doc required by skill startup verification
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // User-scoped downloads subcollection
+    match /users/{userId}/downloads/{downloadId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(downloadId);
+      allow list: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidId(downloadId)
+        && isValidDownloadTask(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().id == downloadId;
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidId(downloadId)
+        && isValidDownloadTask(incoming())
+        && incoming().userId == existing().userId
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().url == existing().url
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'title', 'fileSize', 'format', 'muxingStatus', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(downloadId);
+    }
+
+    // User-scoped settings subcollection
+    match /users/{userId}/settings/{settingId} {
+      allow get, list: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidId(settingId)
+        && isValidBotSetting(incoming())
+        && incoming().userId == request.auth.uid;
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidId(settingId)
+        && isValidBotSetting(incoming())
+        && incoming().userId == existing().userId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['defaultQuality', 'autoDownload', 'targetChatId', 'notificationEnabled', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(settingId);
+    }
+  }
+}
